@@ -1,0 +1,55 @@
+/* Custom Styles for OpenCart Manager */
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.container-fluid {
+    flex: 1;
+}
+
+.navbar {
+    margin-bottom: 0; /* Remove default margin if any */
+}
+
+.breadcrumb {
+    background-color: #e9ecef;
+    padding: 0.75rem 1rem;
+    border-radius: 0.25rem;
+}
+
+.footer {
+    flex-shrink: 0; /* Prevent footer from shrinking */
+}
+
+/* Dark Theme */
+[data-bs-theme="dark"] {
+    background-color: #212529; /* Standard Bootstrap dark background */
+    color: #dee2e6; /* Standard Bootstrap dark text color */
+}
+
+[data-bs-theme="dark"] .bg-light {
+    background-color: #343a40 !important; /* Darker shade for light backgrounds in dark mode */
+}
+
+[data-bs-theme="dark"] .text-muted {
+    color: #adb5bd !important; /* Lighter muted text for dark mode */
+}
+
+[data-bs-theme="dark"] .breadcrumb {
+    background-color: #343a40;
+    color: #dee2e6;
+}
+[data-bs-theme="dark"] .breadcrumb a {
+    color: #8cb4ff; /* Lighter link color for dark mode breadcrumbs */
+}
+
+[data-bs-theme="dark"] .table {
+    --bs-table-bg: #2c3034;
+    --bs-table-striped-bg: #32383e;
+    --bs-table-border-color: #454c54;
+    --bs-table-color: #dee2e6;
+    --bs-table-hover-bg: #373d43;
+}
