@@ -167,7 +167,7 @@ if (!empty($monthly_revenue_data)) {
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Sales (Yearly)</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800"><?php echo $sales_metrics['yearly']['value']; ?> (<?php echo $sales_metrics_yearly['count']; ?> Orders)</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800"><?php echo $sales_metrics['yearly']['value']; ?> (<?php echo $sales_metrics['yearly']['count']; ?> Orders)</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-calendar-check fa-2x text-gray-300"></i>

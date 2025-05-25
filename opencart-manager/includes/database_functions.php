@@ -312,4 +312,122 @@ function get_monthly_revenue_for_chart($num_months = 6, $valid_order_status_ids 
     // Ensure we don't have more than num_months due to loop conditions or if data spans more months than requested
     return array_slice($processed_revenue_data, 0, $num_months);
 }
+
+/**
+ * Get a list of orders with basic details.
+ *
+ * @param array $filters Associative array of filters (e.g., ['order_status_id' => 5]).
+ * @param string $sort_by Sort criteria (e.g., 'date_desc', 'total_asc').
+ * @param int $limit Number of orders to fetch.
+ * @param int $offset Offset for pagination.
+ * @param int $language_id Language ID for status names.
+ * @return array Array of orders, or empty array on failure/no results.
+ */
+function get_orders_list($filters = [], $sort_by = 'date_desc', $limit = 20, $offset = 0, $language_id = 1) {
+    $prefix = get_opencart_prefix();
+    $limit = (int)$limit;
+    $offset = (int)$offset;
+    $language_id = (int)$language_id;
+    $params = [];
+
+    $sql_select = "SELECT o.order_id, 
+                          IF(o.customer_id > 0, CONCAT(c.firstname, ' ', c.lastname), CONCAT(o.firstname, ' ', o.lastname)) as customer_name,
+                          os.name as status_name, o.total, o.currency_code, o.date_added";
+    $sql_from = " FROM `{$prefix}order` o
+                  LEFT JOIN `{$prefix}order_status` os ON o.order_status_id = os.order_status_id AND os.language_id = ?
+                  LEFT JOIN `{$prefix}customer` c ON o.customer_id = c.customer_id";
+    $sql_where = " WHERE 1=1"; // Start WHERE clause
+
+    $params[] = ['i', $language_id]; // For os.language_id
+
+    // Basic filtering (to be expanded)
+    if (!empty($filters['order_status_id'])) {
+        $sql_where .= " AND o.order_status_id = ?";
+        $params[] = ['i', (int)$filters['order_status_id']];
+    }
+    if (!empty($filters['customer_name'])) {
+        // This is a simple name search, can be improved with full-text or separate firstname/lastname search
+        $sql_where .= " AND (CONCAT(c.firstname, ' ', c.lastname) LIKE ? OR CONCAT(o.firstname, ' ', o.lastname) LIKE ?)";
+        $name_like = '%' . $filters['customer_name'] . '%';
+        $params[] = ['s', $name_like];
+        $params[] = ['s', $name_like];
+    }
+     if (!empty($filters['order_id'])) {
+        $sql_where .= " AND o.order_id = ?";
+        $params[] = ['i', (int)$filters['order_id']];
+    }
+    // Add more filters as needed (date range, total amount range, etc.)
+
+    // Sorting
+    $sql_order_by = " ORDER BY ";
+    switch ($sort_by) {
+        case 'date_asc':
+            $sql_order_by .= "o.date_added ASC";
+            break;
+        case 'total_desc':
+            $sql_order_by .= "o.total DESC";
+            break;
+        case 'total_asc':
+            $sql_order_by .= "o.total ASC";
+            break;
+        case 'customer_asc': // Sort by derived customer_name
+            $sql_order_by .= "customer_name ASC"; // Note: some DBs might not allow alias in ORDER BY directly
+            break;
+        case 'customer_desc':
+            $sql_order_by .= "customer_name DESC";
+            break;
+        default: // 'date_desc'
+            $sql_order_by .= "o.date_added DESC";
+    }
+
+    $sql_limit = " LIMIT ? OFFSET ?";
+    $params[] = ['i', $limit];
+    $params[] = ['i', $offset];
+
+    $full_sql = $sql_select . $sql_from . $sql_where . $sql_order_by . $sql_limit;
+    
+    $results = execute_query($full_sql, $params);
+    return ($results === false) ? [] : $results;
+}
+
+/**
+ * Get the total count of orders, optionally applying filters.
+ *
+ * @param array $filters Associative array of filters (same as get_orders_list).
+ * @return int Total number of orders, or 0 on failure.
+ */
+function get_total_orders_count($filters = []) {
+    $prefix = get_opencart_prefix();
+    $params = [];
+    // Reconstruct WHERE clause similar to get_orders_list for accurate counting
+    // but without language_id in WHERE as it's for JOIN condition in main query.
+    // Customer join is needed if filtering by customer name.
+    $sql_from = " FROM `{$prefix}order` o 
+                  LEFT JOIN `{$prefix}customer` c ON o.customer_id = c.customer_id";
+    $sql_where = " WHERE 1=1";
+
+    if (!empty($filters['order_status_id'])) {
+        $sql_where .= " AND o.order_status_id = ?";
+        $params[] = ['i', (int)$filters['order_status_id']];
+    }
+    if (!empty($filters['customer_name'])) {
+        $sql_where .= " AND (CONCAT(c.firstname, ' ', c.lastname) LIKE ? OR CONCAT(o.firstname, ' ', o.lastname) LIKE ?)";
+        $name_like = '%' . $filters['customer_name'] . '%';
+        $params[] = ['s', $name_like];
+        $params[] = ['s', $name_like];
+    }
+    if (!empty($filters['order_id'])) {
+        $sql_where .= " AND o.order_id = ?";
+        $params[] = ['i', (int)$filters['order_id']];
+    }
+
+    $full_sql = "SELECT COUNT(o.order_id) as total_count" . $sql_from . $sql_where;
+    
+    $result = execute_query($full_sql, $params);
+    
+    if ($result === false || empty($result)) {
+        return 0;
+    }
+    return (int)$result[0]['total_count'];
+}
 ?>
