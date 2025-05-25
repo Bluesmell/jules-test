@@ -1,6 +1,10 @@
 <?php
+if (file_exists(__DIR__ . '/db_credentials.php')) {
+    require_once __DIR__ . '/db_credentials.php';
+}
+
 // Database Connection
-require_once 'config.php';
+require_once 'config.php'; // config.php might define OPENCART_DB_ constants as defaults
 
 $db_conn = null;
 
@@ -9,8 +13,13 @@ function get_db_connection() {
 
     if ($db_conn === null) {
         try {
-            // Using MySQLi for this example as requested
-            $db_conn = new mysqli(OPENCART_DB_HOST, OPENCART_DB_USER, OPENCART_DB_PASS, OPENCART_DB_NAME);
+            // Use OCM_DB_ constants if defined (from db_credentials.php), otherwise fallback to OPENCART_DB_ (from config.php)
+            $db_host = defined('OCM_DB_HOST') ? OCM_DB_HOST : (defined('OPENCART_DB_HOST') ? OPENCART_DB_HOST : 'localhost');
+            $db_user = defined('OCM_DB_USER') ? OCM_DB_USER : (defined('OPENCART_DB_USER') ? OPENCART_DB_USER : 'db_user');
+            $db_pass = defined('OCM_DB_PASS') ? OCM_DB_PASS : (defined('OPENCART_DB_PASS') ? OPENCART_DB_PASS : '');
+            $db_name = defined('OCM_DB_NAME') ? OCM_DB_NAME : (defined('OPENCART_DB_NAME') ? OPENCART_DB_NAME : 'opencart_db');
+
+            $db_conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
 
             if ($db_conn->connect_error) {
                 // In a real app, log this error more gracefully
@@ -33,6 +42,16 @@ function get_db_connection() {
         }
     }
     return $db_conn;
+}
+
+// Function to get the correct OpenCart table prefix
+function get_opencart_prefix() {
+    if (defined('OCM_DB_PREFIX')) { // From db_credentials.php
+        return OCM_DB_PREFIX;
+    } elseif (defined('OPENCART_TABLE_PREFIX')) { // Fallback to config.php's default
+        return OPENCART_TABLE_PREFIX;
+    }
+    return 'oc_'; // Ultimate fallback, should match OpenCart's default if nothing else is set
 }
 
 function close_db_connection() {

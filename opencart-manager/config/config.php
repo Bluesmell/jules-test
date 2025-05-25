@@ -52,4 +52,7 @@ if (DEBUG_MODE) {
     ini_set('display_startup_errors', 0);
     error_reporting(0);
 }
+
+// Default Currency Symbol
+define('DEFAULT_CURRENCY_SYMBOL', '$');
 ?>
