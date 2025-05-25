@@ -430,4 +430,122 @@ function get_total_orders_count($filters = []) {
     }
     return (int)$result[0]['total_count'];
 }
+
+/**
+ * Get a list of products with their inventory levels.
+ *
+ * @param array $filters Associative array of filters (e.g., ['product_name' => 'T-Shirt']).
+ * @param string $sort_by Sort criteria (e.g., 'name_asc', 'quantity_desc').
+ * @param int $limit Number of products to fetch.
+ * @param int $offset Offset for pagination.
+ * @param int $language_id Language ID for product names.
+ * @return array Array of products, or empty array on failure/no results.
+ */
+function get_inventory_levels($filters = [], $sort_by = 'name_asc', $limit = 20, $offset = 0, $language_id = 1) {
+    $prefix = get_opencart_prefix();
+    $limit = (int)$limit;
+    $offset = (int)$offset;
+    $language_id = (int)$language_id;
+    $params = [];
+
+    $sql_select = "SELECT p.product_id, pd.name as product_name, p.model, p.sku, p.quantity, p.status as product_oc_status"; // p.status is OC product status
+    $sql_from = " FROM `{$prefix}product` p
+                  LEFT JOIN `{$prefix}product_description` pd ON p.product_id = pd.product_id AND pd.language_id = ?";
+    $sql_where = " WHERE 1=1";
+    $params[] = ['i', $language_id];
+
+    // Basic filtering (to be expanded)
+    if (!empty($filters['product_name'])) {
+        $sql_where .= " AND pd.name LIKE ?";
+        $params[] = ['s', '%' . $filters['product_name'] . '%'];
+    }
+    if (!empty($filters['sku_model'])) { // Search in both SKU and Model
+        $sql_where .= " AND (p.sku LIKE ? OR p.model LIKE ?)";
+        $sku_like = '%' . $filters['sku_model'] . '%';
+        $params[] = ['s', $sku_like];
+        $params[] = ['s', $sku_like];
+    }
+    if (isset($filters['product_oc_status']) && $filters['product_oc_status'] !== '') { // Filter by OpenCart product status
+        $sql_where .= " AND p.status = ?";
+        $params[] = ['i', (int)$filters['product_oc_status']];
+    }
+
+
+    // Sorting
+    $sql_order_by = " ORDER BY ";
+    switch ($sort_by) {
+        case 'name_desc':
+            $sql_order_by .= "pd.name DESC";
+            break;
+        case 'quantity_asc':
+            $sql_order_by .= "p.quantity ASC";
+            break;
+        case 'quantity_desc':
+            $sql_order_by .= "p.quantity DESC";
+            break;
+        case 'sku_asc': // Order by model as primary SKU like field
+            $sql_order_by .= "p.model ASC, p.sku ASC";
+            break;
+        case 'sku_desc':
+            $sql_order_by .= "p.model DESC, p.sku DESC";
+            break;
+        default: // 'name_asc'
+            $sql_order_by .= "pd.name ASC";
+    }
+
+    $sql_limit = " LIMIT ? OFFSET ?";
+    $params[] = ['i', $limit];
+    $params[] = ['i', $offset];
+
+    $full_sql = $sql_select . $sql_from . $sql_where . $sql_order_by . $sql_limit;
+    
+    $results = execute_query($full_sql, $params);
+    return ($results === false) ? [] : $results;
+}
+
+/**
+ * Get the total count of products, optionally applying filters.
+ *
+ * @param array $filters Associative array of filters (same as get_inventory_levels).
+ * @param int $language_id Language ID needed if filtering by name.
+ * @return int Total number of products, or 0 on failure.
+ */
+function get_total_products_count($filters = [], $language_id = 1) {
+    $prefix = get_opencart_prefix();
+    $params = [];
+    $language_id = (int)$language_id; // Ensure language_id is int for consistency
+
+    $sql_from = " FROM `{$prefix}product` p";
+    $sql_where = " WHERE 1=1";
+
+    // If filtering by product_name, a JOIN is needed
+    if (!empty($filters['product_name'])) {
+        $sql_from .= " LEFT JOIN `{$prefix}product_description` pd ON p.product_id = pd.product_id AND pd.language_id = ?";
+        $params[] = ['i', $language_id]; // Add language_id to params *first* if JOIN is conditional
+        $sql_where .= " AND pd.name LIKE ?";
+        $params[] = ['s', '%' . $filters['product_name'] . '%'];
+    } else {
+        // If no name filter, no language_id needed for WHERE, but JOIN might still be there if other pd fields were filtered
+    }
+    
+    if (!empty($filters['sku_model'])) {
+        $sql_where .= " AND (p.sku LIKE ? OR p.model LIKE ?)";
+        $sku_like = '%' . $filters['sku_model'] . '%';
+        $params[] = ['s', $sku_like];
+        $params[] = ['s', $sku_like];
+    }
+    if (isset($filters['product_oc_status']) && $filters['product_oc_status'] !== '') {
+        $sql_where .= " AND p.status = ?";
+        $params[] = ['i', (int)$filters['product_oc_status']];
+    }
+
+    $full_sql = "SELECT COUNT(DISTINCT p.product_id) as total_count" . $sql_from . $sql_where; // Use DISTINCT p.product_id if JOINs could cause duplicates
+    
+    $result = execute_query($full_sql, $params);
+    
+    if ($result === false || empty($result)) {
+        return 0;
+    }
+    return (int)$result[0]['total_count'];
+}
 ?>
