@@ -2,15 +2,30 @@
 // modules/customers/index.php
 $page_title = "Customer Management - OpenCart Manager";
 
-// Placeholder data for Phase 1
-$customers = [
-    ['id' => 1, 'name' => 'John Doe', 'email' => 'john.doe@example.com', 'phone' => '555-1234', 'total_orders' => 5, 'total_spent' => '250.00', 'date_added' => '2023-01-15'],
-    ['id' => 2, 'name' => 'Jane Smith', 'email' => 'jane.smith@example.com', 'phone' => '555-5678', 'total_orders' => 2, 'total_spent' => '120.50', 'date_added' => '2023-02-20'],
-    ['id' => 3, 'name' => 'Robert Brown', 'email' => 'robert.brown@example.com', 'phone' => '555-8765', 'total_orders' => 10, 'total_spent' => '750.75', 'date_added' => '2022-11-05'],
-    ['id' => 4, 'name' => 'Emily White', 'email' => 'emily.white@example.com', 'phone' => '555-4321', 'total_orders' => 1, 'total_spent' => '45.00', 'date_added' => '2023-05-10'],
-];
+// Default pagination and sorting parameters
+$current_page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$limit = 20; // Customers per page
+$offset = ($current_page - 1) * $limit;
+$sort_by = isset($_GET['sort']) ? sanitize_input($_GET['sort']) : 'name_asc'; 
 
-$customer_segments = ['New', 'Regular', 'VIP', 'Lapsed'];
+// Filters (UI elements will connect to these $_GET params)
+$filters = [];
+if (!empty($_GET['filter_name'])) {
+    $filters['name'] = sanitize_input($_GET['filter_name']);
+}
+if (!empty($_GET['filter_email'])) {
+    $filters['email'] = sanitize_input($_GET['filter_email']);
+}
+if (isset($_GET['filter_customer_oc_status']) && $_GET['filter_customer_oc_status'] !== '') {
+    $filters['customer_oc_status'] = sanitize_input($_GET['filter_customer_oc_status']);
+}
+
+// Fetch customer data from the database
+$customers_list = get_customers_list($filters, $sort_by, $limit, $offset);
+$total_customers = get_total_customers_count($filters);
+
+// Remove or comment out old placeholder $customers array
+// $customer_segments = ['New', 'Regular', 'VIP', 'Lapsed']; // Keep if still used for filter UI, or fetch dynamically
 ?>
 
 <div class="container-fluid">
@@ -28,31 +43,37 @@ $customer_segments = ['New', 'Regular', 'VIP', 'Lapsed'];
             <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-filter me-1"></i>Filter Customers</h6>
         </div>
         <div class="card-body">
-            <form class="row g-3 align-items-end">
-                <div class="col-md-4">
-                    <label for="customerSearch" class="form-label">Search Customer</label>
-                    <input type="text" class="form-control form-control-sm" id="customerSearch" placeholder="Name, email, or phone...">
+            <form class="row g-3 align-items-center" method="GET" action="<?php echo BASE_URL; ?>index.php">
+                <input type="hidden" name="module" value="customers">
+                <div class="col-md-3">
+                    <label for="filterName" class="form-label">Customer Name</label>
+                    <input type="text" class="form-control form-control-sm" id="filterName" name="filter_name" placeholder="Enter Name" value="<?php echo isset($filters['name']) ? htmlspecialchars($filters['name']) : ''; ?>">
                 </div>
                 <div class="col-md-3">
-                    <label for="customerSegment" class="form-label">Customer Segment</label>
-                    <select id="customerSegment" class="form-select form-select-sm">
-                        <option selected value="">All Segments</option>
-                        <?php foreach ($customer_segments as $segment): ?>
-                            <option value="<?php echo strtolower($segment); ?>"><?php echo $segment; ?></option>
-                        <?php endforeach; ?>
+                    <label for="filterEmail" class="form-label">Email</label>
+                    <input type="text" class="form-control form-control-sm" id="filterEmail" name="filter_email" placeholder="Enter Email" value="<?php echo isset($filters['email']) ? htmlspecialchars($filters['email']) : ''; ?>">
+                </div>
+                <div class="col-md-2">
+                    <label for="filterCustomerOcStatus" class="form-label">OC Status</label>
+                    <select id="filterCustomerOcStatus" name="filter_customer_oc_status" class="form-select form-select-sm">
+                        <option value="" <?php echo (!isset($filters['customer_oc_status']) || $filters['customer_oc_status'] === '') ? 'selected' : ''; ?>>Any Status</option>
+                        <option value="1" <?php echo (isset($filters['customer_oc_status']) && $filters['customer_oc_status'] === '1') ? 'selected' : ''; ?>>Enabled</option>
+                        <option value="0" <?php echo (isset($filters['customer_oc_status']) && $filters['customer_oc_status'] === '0') ? 'selected' : ''; ?>>Disabled</option>
                     </select>
                 </div>
                 <div class="col-md-3">
                     <label for="customerSort" class="form-label">Sort By</label>
-                    <select id="customerSort" class="form-select form-select-sm">
-                        <option selected value="date_added_desc">Date Added (Newest)</option>
-                        <option value="date_added_asc">Date Added (Oldest)</option>
-                        <option value="total_orders_desc">Total Orders (Most)</option>
-                        <option value="total_spent_desc">Total Spent (Highest)</option>
+                    <select id="customerSort" name="sort" class="form-select form-select-sm">
+                        <option value="name_asc" <?php echo ($sort_by === 'name_asc') ? 'selected' : ''; ?>>Name (A-Z)</option>
+                        <option value="name_desc" <?php echo ($sort_by === 'name_desc') ? 'selected' : ''; ?>>Name (Z-A)</option>
+                        <option value="email_asc" <?php echo ($sort_by === 'email_asc') ? 'selected' : ''; ?>>Email (A-Z)</option>
+                        <option value="email_desc" <?php echo ($sort_by === 'email_desc') ? 'selected' : ''; ?>>Email (Z-A)</option>
+                        <option value="date_added_desc" <?php echo ($sort_by === 'date_added_desc') ? 'selected' : ''; ?>>Date Added (Newest)</option>
+                        <option value="date_added_asc" <?php echo ($sort_by === 'date_added_asc') ? 'selected' : ''; ?>>Date Added (Oldest)</option>
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <button type="submit" class="btn btn-sm btn-info w-100"><i class="fas fa-search me-1"></i>Filter</button>
+                <div class="col-md-1 align-self-end"> <!-- Ensure button aligns with other fields if label is present, or use this for spacing -->
+                    <button type="submit" class="btn btn-sm btn-primary w-100"><i class="fas fa-filter"></i> Filter</button>
                 </div>
             </form>
         </div>
@@ -64,50 +85,105 @@ $customer_segments = ['New', 'Regular', 'VIP', 'Lapsed'];
             <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-list-ul me-1"></i>Customer List</h6>
         </div>
         <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered table-striped table-hover" id="customerTable" width="100%" cellspacing="0">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Phone</th>
-                            <th>Total Orders</th>
-                            <th>Total Spent ($)</th>
-                            <th>Date Added</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($customers as $customer): ?>
+            <div class="table-responsive" id="customer-list-table-placeholder"> <!-- Ensure this ID is unique if needed, or use class -->
+                <?php if ($customers_list === false): // Should not happen if functions return [] on error ?>
+                    <div class="alert alert-danger">Error fetching customer data. Please check system logs.</div>
+                <?php elseif (empty($customers_list)): ?>
+                    <div class="alert alert-info">No customers found matching your criteria.</div>
+                <?php else: ?>
+                    <table class="table table-bordered table-striped table-hover" id="customerTable" width="100%" cellspacing="0">
+                        <thead>
                             <tr>
-                                <td><?php echo $customer['id']; ?></td>
-                                <td><?php echo htmlspecialchars($customer['name']); ?></td>
-                                <td><?php echo htmlspecialchars($customer['email']); ?></td>
-                                <td><?php echo htmlspecialchars($customer['phone']); ?></td>
-                                <td class="text-center"><?php echo $customer['total_orders']; ?></td>
-                                <td class="text-end"><?php echo $customer['total_spent']; ?></td>
-                                <td><?php echo $customer['date_added']; ?></td>
-                                <td>
-                                    <button class="btn btn-sm btn-info" title="View Details" onclick="alert('View details for customer ID <?php echo $customer['id']; ?> - Placeholder');"><i class="fas fa-eye"></i></button>
-                                    <button class="btn btn-sm btn-warning" title="Edit Customer" onclick="alert('Edit customer ID <?php echo $customer['id']; ?> - Placeholder');"><i class="fas fa-edit"></i></button>
-                                    <button class="btn btn-sm btn-success" title="View Purchase History" onclick="alert('View purchase history for customer ID <?php echo $customer['id']; ?> - Placeholder');"><i class="fas fa-history"></i></button>
-                                </td>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>OC Status</th>
+                                <th>Date Added</th>
+                                <th>Actions</th>
                             </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($customers_list as $customer): ?>
+                                <tr>
+                                    <td><?php echo htmlspecialchars($customer['customer_id']); ?></td>
+                                    <td><?php echo htmlspecialchars($customer['name']); ?></td>
+                                    <td><?php echo htmlspecialchars($customer['email']); ?></td>
+                                    <td><?php echo htmlspecialchars($customer['telephone']); ?></td>
+                                    <td>
+                                        <?php if ($customer['customer_oc_status'] == 1): ?>
+                                            <span class="badge bg-success">Enabled</span>
+                                        <?php else: ?>
+                                            <span class="badge bg-secondary">Disabled</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?php echo htmlspecialchars(date('M d, Y', strtotime($customer['date_added']))); ?></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-info" onclick="alert('View details for Customer ID <?php echo $customer['customer_id']; ?> - Placeholder');" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-primary" onclick="alert('View orders for Customer ID <?php echo $customer['customer_id']; ?> - Placeholder');" title="View Orders">
+                                            <i class="fas fa-shopping-cart"></i>
+                                        </button>
+                                        <!-- Add more actions later, e.g., edit customer -->
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php endif; ?>
             </div>
-            <!-- Pagination Placeholder -->
-            <nav aria-label="Customer table navigation">
-              <ul class="pagination justify-content-center mt-3">
-                <li class="page-item disabled"><a class="page-link" href="#" tabindex="-1" aria-disabled="true">Previous</a></li>
-                <li class="page-item active"><a class="page-link" href="#">1</a></li>
-                <li class="page-item"><a class="page-link" href="#">2</a></li>
-                <li class="page-item"><a class="page-link" href="#">3</a></li>
-                <li class="page-item"><a class="page-link" href="#">Next</a></li>
-              </ul>
-            </nav>
+            <div class="mt-3" id="customer-list-pagination-placeholder">
+                <?php if ($total_customers > 0 && $limit > 0): ?>
+                    <nav aria-label="Customers navigation">
+                        <ul class="pagination justify-content-center">
+                            <?php
+                            $total_pages = ceil($total_customers / $limit);
+                            
+                            $filter_params = []; // To hold current filters for pagination links
+                            if (!empty($filters['name'])) $filter_params['filter_name'] = $filters['name'];
+                            if (!empty($filters['email'])) $filter_params['filter_email'] = $filters['email'];
+                            if (isset($filters['customer_oc_status']) && $filters['customer_oc_status'] !== '') $filter_params['customer_oc_status'] = $filters['customer_oc_status'];
+
+                            // Previous Page
+                            if ($current_page > 1) {
+                                $prev_page_params = http_build_query(array_merge($filter_params, ['module' => 'customers', 'page' => $current_page - 1, 'sort' => $sort_by]));
+                                echo "<li class='page-item'><a class='page-link' href='" . BASE_URL . "index.php?{$prev_page_params}'>Previous</a></li>";
+                            } else {
+                                echo "<li class='page-item disabled'><span class='page-link'>Previous</span></li>";
+                            }
+
+                            // Page Numbers (simplified version, can be enhanced like in Sales module if many pages are expected)
+                            for ($i = 1; $i <= $total_pages; $i++) {
+                                $page_params = http_build_query(array_merge($filter_params, ['module' => 'customers', 'page' => $i, 'sort' => $sort_by]));
+                                if ($i == $current_page) {
+                                    echo "<li class='page-item active'><span class='page-link'>{$i}</span></li>";
+                                } else {
+                                     // Simple pagination: show first, last, and a few around current.
+                                    if ($total_pages > 10 && abs($i - $current_page) > 2 && $i != 1 && $i != $total_pages && !($i > $current_page - 2 && $i < $current_page + 2) ) {
+                                        if (!isset($ellipsis_shown_before_cust) && $i < $current_page) { echo "<li class='page-item disabled'><span class='page-link'>...</span></li>"; $ellipsis_shown_before_cust = true; }
+                                        if (!isset($ellipsis_shown_after_cust) && $i > $current_page) { echo "<li class='page-item disabled'><span class='page-link'>...</span></li>"; $ellipsis_shown_after_cust = true; }
+                                        continue;
+                                    }
+                                    echo "<li class='page-item'><a class='page-link' href='" . BASE_URL . "index.php?{$page_params}'>{$i}</a></li>";
+                                }
+                            }
+                            unset($ellipsis_shown_before_cust, $ellipsis_shown_after_cust);
+
+
+                            // Next Page
+                            if ($current_page < $total_pages) {
+                                $next_page_params = http_build_query(array_merge($filter_params, ['module' => 'customers', 'page' => $current_page + 1, 'sort' => $sort_by]));
+                                echo "<li class='page-item'><a class='page-link' href='" . BASE_URL . "index.php?{$next_page_params}'>Next</a></li>";
+                            } else {
+                                echo "<li class='page-item disabled'><span class='page-link'>Next</span></li>";
+                            }
+                            ?>
+                        </ul>
+                    </nav>
+                    <p class="text-center text-muted small">Showing <?php echo count($customers_list); ?> of <?php echo $total_customers; ?> total customers (Page <?php echo $current_page; ?> of <?php echo $total_pages; ?>).</p>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 

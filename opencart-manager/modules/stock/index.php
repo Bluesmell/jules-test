@@ -46,6 +46,8 @@ if (!empty($current_inventory_list)) {
 // For a site-wide low stock alert section, a separate query fetching ALL low stock products
 // (not just the current page of the main inventory list) would be better.
 // For this plan step, filtering the current page's list is acceptable.
+
+$stock_movement_history = []; // Initialize as empty array for now
 ?>
 
 <div class="container-fluid">

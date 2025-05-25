@@ -548,4 +548,105 @@ function get_total_products_count($filters = [], $language_id = 1) {
     }
     return (int)$result[0]['total_count'];
 }
+
+/**
+ * Get a list of customers.
+ *
+ * @param array $filters Associative array of filters (e.g., ['name' => 'John Doe']).
+ * @param string $sort_by Sort criteria (e.g., 'name_asc', 'date_added_desc').
+ * @param int $limit Number of customers to fetch.
+ * @param int $offset Offset for pagination.
+ * @return array Array of customers, or empty array on failure/no results.
+ */
+function get_customers_list($filters = [], $sort_by = 'name_asc', $limit = 20, $offset = 0) {
+    // $prefix = get_opencart_prefix(); // Standard OpenCart 'customer' table is not prefixed.
+    $limit = (int)$limit;
+    $offset = (int)$offset;
+    $params = [];
+
+    $sql_select = "SELECT c.customer_id, CONCAT(c.firstname, ' ', c.lastname) as name, c.email, c.telephone, c.status as customer_oc_status, c.date_added";
+    $sql_from = " FROM `customer` c"; // Corrected: No prefix for 'customer' table
+    $sql_where = " WHERE 1=1";
+
+    // Basic filtering
+    if (!empty($filters['name'])) {
+        $sql_where .= " AND CONCAT(c.firstname, ' ', c.lastname) LIKE ?";
+        $params[] = ['s', '%' . $filters['name'] . '%'];
+    }
+    if (!empty($filters['email'])) {
+        $sql_where .= " AND c.email LIKE ?";
+        $params[] = ['s', '%' . $filters['email'] . '%'];
+    }
+    if (isset($filters['customer_oc_status']) && $filters['customer_oc_status'] !== '') {
+        $sql_where .= " AND c.status = ?";
+        $params[] = ['i', (int)$filters['customer_oc_status']];
+    }
+
+    // Sorting
+    $sql_order_by = " ORDER BY ";
+    switch ($sort_by) {
+        case 'name_desc':
+            $sql_order_by .= "name DESC"; // Using alias 'name'
+            break;
+        case 'email_asc':
+            $sql_order_by .= "c.email ASC";
+            break;
+        case 'email_desc':
+            $sql_order_by .= "c.email DESC";
+            break;
+        case 'date_added_asc':
+            $sql_order_by .= "c.date_added ASC";
+            break;
+        case 'date_added_desc':
+            $sql_order_by .= "c.date_added DESC";
+            break;
+        default: // 'name_asc'
+            $sql_order_by .= "name ASC"; // Using alias 'name'
+    }
+
+    $sql_limit = " LIMIT ? OFFSET ?";
+    $params[] = ['i', $limit];
+    $params[] = ['i', $offset];
+
+    $full_sql = $sql_select . $sql_from . $sql_where . $sql_order_by . $sql_limit;
+    
+    $results = execute_query($full_sql, $params);
+    return ($results === false) ? [] : $results;
+}
+
+/**
+ * Get the total count of customers, optionally applying filters.
+ *
+ * @param array $filters Associative array of filters (same as get_customers_list).
+ * @return int Total number of customers, or 0 on failure.
+ */
+function get_total_customers_count($filters = []) {
+    // $prefix = get_opencart_prefix(); // Not needed for 'customer' table
+    $params = [];
+
+    $sql_from = " FROM `customer` c"; // Corrected: No prefix for 'customer' table
+    $sql_where = " WHERE 1=1";
+
+    if (!empty($filters['name'])) {
+        $sql_where .= " AND CONCAT(c.firstname, ' ', c.lastname) LIKE ?";
+        $params[] = ['s', '%' . $filters['name'] . '%'];
+    }
+    if (!empty($filters['email'])) {
+        $sql_where .= " AND c.email LIKE ?";
+        $params[] = ['s', '%' . $filters['email'] . '%'];
+    }
+    if (isset($filters['customer_oc_status']) && $filters['customer_oc_status'] !== '') {
+        $sql_where .= " AND c.status = ?";
+        $params[] = ['i', (int)$filters['customer_oc_status']];
+    }
+
+    $full_sql = "SELECT COUNT(c.customer_id) as total_count" . $sql_from . $sql_where;
+    
+    $result = execute_query($full_sql, $params);
+    
+    if ($result === false || empty($result)) {
+        return 0;
+    }
+    return (int)$result[0]['total_count'];
+}
 ?>
