@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_llm_settings']))
     </div>
 
     <form method="POST" action="<?php echo BASE_URL; ?>index.php?module=llm&action=settings">
-        <?php // generate_csrf_token_input(); // Placeholder for CSRF token field ?>
+        <?php csrf_input_field(); ?>
 
         <!-- API Key Management -->
         <div class="card shadow mb-4">

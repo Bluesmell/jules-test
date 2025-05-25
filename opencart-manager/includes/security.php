@@ -41,4 +41,12 @@ function validate_csrf_token($token) {
 
 // Add functions for SQL injection prevention (using prepared statements is key),
 // XSS protection, session management, etc.
+
+/**
+ * Outputs a hidden input field with the CSRF token.
+ */
+function csrf_input_field() {
+    $token = generate_csrf_token();
+    echo "<input type=\"hidden\" name=\"csrf_token\" value=\"" . htmlspecialchars($token) . "\">";
+}
 ?>
