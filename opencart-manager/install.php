@@ -21,11 +21,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $success_message = "Database details (simulated) saved.";
         $_SESSION['install_db_host'] = $_POST['db_host'] ?? 'localhost';
         // ... store other params ...
-        $step = 2;
+        $step = 3;
     } elseif (isset($_POST['submit_step2'])) { // OpenCart Compatibility & Admin Setup
         // Perform checks, create admin user for the manager app
         $success_message = "Compatibility checks (simulated) passed. Admin user (simulated) created.";
-        $step = 3;
+        $step = 4;
     }
     // ... more steps
 }
