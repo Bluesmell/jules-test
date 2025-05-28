@@ -649,4 +649,92 @@ function get_total_customers_count($filters = []) {
     }
     return (int)$result[0]['total_count'];
 }
+
+/**
+ * Get overall customer analytics: total spending, total orders, and unique customer count.
+ * Considers only valid orders from registered customers.
+ *
+ * @return array|false Associative array with 'total_spending', 'total_orders', 
+ *                     'total_unique_customers', or false on error.
+ */
+function get_overall_customer_analytics() {
+    $prefix = get_opencart_prefix();
+    $params = [];
+    
+    $valid_order_status_condition = "o.order_status_id > 0"; // Default
+    if (defined('VALID_ORDER_STATUS_IDS') && is_array(VALID_ORDER_STATUS_IDS) && !empty(VALID_ORDER_STATUS_IDS)) {
+        $status_ids_string = implode(',', array_map('intval', VALID_ORDER_STATUS_IDS));
+        if (!empty($status_ids_string)) {
+            $valid_order_status_condition = "o.order_status_id IN ({$status_ids_string})";
+        }
+    }
+
+    // Note: For MySQL 5.7+, COUNT(DISTINCT ...) can be slow on large tables.
+    // Consider if a subquery or multiple queries would be more performant if issues arise.
+    $sql = "SELECT 
+                SUM(o.total) as total_spending,
+                COUNT(o.order_id) as total_orders,
+                COUNT(DISTINCT o.customer_id) as total_unique_customers
+            FROM `{$prefix}order` o
+            WHERE {$valid_order_status_condition}
+              AND o.customer_id > 0"; // Only include registered customers
+
+    $result = execute_query($sql, $params);
+
+    if ($result === false) { 
+        // Query execution error
+        return false;
+    }
+    
+    if (empty($result)) {
+        // No orders matching criteria, or no orders at all. Return zeros.
+        return ['total_spending' => 0, 'total_orders' => 0, 'total_unique_customers' => 0];
+    }
+
+    return [
+        'total_spending' => (float)($result[0]['total_spending'] ?? 0),
+        'total_orders' => (int)($result[0]['total_orders'] ?? 0),
+        'total_unique_customers' => (int)($result[0]['total_unique_customers'] ?? 0)
+    ];
+}
+
+/**
+ * Get the count of valid orders for each customer.
+ *
+ * @return array Array of ['customer_id' => ..., 'order_count' => ...] or empty array on failure/no data.
+ */
+function get_customer_order_counts() {
+    $prefix = get_opencart_prefix();
+    $params = [];
+
+    $valid_order_status_condition = "o.order_status_id > 0"; // Default
+    if (defined('VALID_ORDER_STATUS_IDS') && is_array(VALID_ORDER_STATUS_IDS) && !empty(VALID_ORDER_STATUS_IDS)) {
+        $status_ids_string = implode(',', array_map('intval', VALID_ORDER_STATUS_IDS));
+        if (!empty($status_ids_string)) {
+            $valid_order_status_condition = "o.order_status_id IN ({$status_ids_string})";
+        }
+    }
+
+    $sql = "SELECT 
+                o.customer_id,
+                COUNT(o.order_id) as order_count
+            FROM `{$prefix}order` o
+            WHERE {$valid_order_status_condition}
+              AND o.customer_id > 0
+            GROUP BY o.customer_id
+            ORDER BY order_count DESC"; // Ordering can be useful for some analyses
+
+    $results = execute_query($sql, $params);
+
+    if ($results === false) {
+        return []; // Return empty array on error
+    }
+    
+    // execute_query typically returns strings from DB, ensure order_count is int
+    return array_map(function($row) {
+        $row['customer_id'] = (int)$row['customer_id']; // Also ensure customer_id is int
+        $row['order_count'] = (int)$row['order_count'];
+        return $row;
+    }, $results);
+}
 ?>

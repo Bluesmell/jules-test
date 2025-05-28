@@ -24,6 +24,62 @@ if (isset($_GET['filter_customer_oc_status']) && $_GET['filter_customer_oc_statu
 $customers_list = get_customers_list($filters, $sort_by, $limit, $offset);
 $total_customers = get_total_customers_count($filters);
 
+// Fetch overall customer analytics for CLV insights
+$overall_analytics = get_overall_customer_analytics(); 
+
+$avg_spending = 0;
+$avg_orders = 0;
+
+if ($overall_analytics && isset($overall_analytics['total_unique_customers']) && $overall_analytics['total_unique_customers'] > 0) {
+    $avg_spending = $overall_analytics['total_spending'] / $overall_analytics['total_unique_customers'];
+    $avg_orders = $overall_analytics['total_orders'] / $overall_analytics['total_unique_customers'];
+}
+
+// Customer Segmentation Data
+$customer_order_counts = get_customer_order_counts();
+$segments = [
+    'New' => 0,    // 1 order
+    'Regular' => 0, // 2-5 orders
+    'Loyal' => 0    // >5 orders
+];
+
+if (!empty($customer_order_counts)) {
+    foreach ($customer_order_counts as $customer_data) {
+        $order_count = $customer_data['order_count'];
+        if ($order_count == 1) {
+            $segments['New']++;
+        } elseif ($order_count >= 2 && $order_count <= 5) {
+            $segments['Regular']++;
+        } elseif ($order_count > 5) {
+            $segments['Loyal']++;
+        }
+    }
+}
+
+// Order Frequency Analysis Data
+$order_frequency_distribution = [
+    '1_order' => 0,
+    '2_orders' => 0,
+    '3_to_5_orders' => 0,
+    '6_plus_orders' => 0
+];
+
+if (!empty($customer_order_counts)) {
+    foreach ($customer_order_counts as $customer_data) {
+        $order_count = $customer_data['order_count'];
+        if ($order_count == 1) {
+            $order_frequency_distribution['1_order']++;
+        } elseif ($order_count == 2) {
+            $order_frequency_distribution['2_orders']++;
+        } elseif ($order_count >= 3 && $order_count <= 5) {
+            $order_frequency_distribution['3_to_5_orders']++;
+        } elseif ($order_count > 5) {
+            $order_frequency_distribution['6_plus_orders']++;
+        }
+    }
+}
+// $avg_orders is already calculated from the CLV section.
+
 // Remove or comment out old placeholder $customers array
 // $customer_segments = ['New', 'Regular', 'VIP', 'Lapsed']; // Keep if still used for filter UI, or fetch dynamically
 ?>
@@ -195,8 +251,10 @@ $total_customers = get_total_customers_count($filters);
                     <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-chart-line me-1"></i>Customer Lifetime Value (CLV)</h6>
                 </div>
                 <div class="card-body text-center">
-                    <p class="text-muted">CLV calculations will be displayed here.</p>
-                    <h3 class="display-6">N/A</h3>
+                    <p class="text-muted mb-2">Average Spending per Customer</p>
+                    <h4 class="display-6 mb-3">$<?php echo number_format($avg_spending, 2); ?></h4>
+                    <p class="text-muted mb-1">Average Orders per Customer</p>
+                    <h4 class="display-6"><?php echo number_format($avg_orders, 1); ?></h4>
                 </div>
             </div>
         </div>
@@ -205,11 +263,21 @@ $total_customers = get_total_customers_count($filters);
                 <div class="card-header py-3">
                     <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-users-slash me-1"></i>Customer Segmentation</h6>
                 </div>
-                <div class="card-body text-center">
-                    <p class="text-muted">Customer segments overview will be displayed here.</p>
-                     <div id="customerSegmentChartPlaceholder" style="height: 150px; background-color: #f8f9fc; display:flex; align-items:center; justify-content:center;">
-                        <small>Chart/Data Placeholder</small>
-                    </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            New Customers (1 order)
+                            <span class="badge bg-primary rounded-pill"><?php echo $segments['New']; ?></span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Regular Customers (2-5 orders)
+                            <span class="badge bg-info rounded-pill"><?php echo $segments['Regular']; ?></span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Loyal Customers (>5 orders)
+                            <span class="badge bg-success rounded-pill"><?php echo $segments['Loyal']; ?></span>
+                        </li>
+                    </ul>
                 </div>
             </div>
         </div>
@@ -218,11 +286,26 @@ $total_customers = get_total_customers_count($filters);
                 <div class="card-header py-3">
                     <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-redo-alt me-1"></i>Order Frequency Analysis</h6>
                 </div>
-                <div class="card-body text-center">
-                    <p class="text-muted">Order frequency insights will be displayed here.</p>
-                     <div id="orderFrequencyChartPlaceholder" style="height: 150px; background-color: #f8f9fc; display:flex; align-items:center; justify-content:center;">
-                        <small>Chart/Data Placeholder</small>
-                    </div>
+                <div class="card-body">
+                    <p class="text-center mb-2">Overall Average Orders per Customer: <strong><?php echo number_format($avg_orders, 1); ?></strong></p>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Customers with 1 order
+                            <span class="badge bg-secondary rounded-pill"><?php echo $order_frequency_distribution['1_order']; ?></span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Customers with 2 orders
+                            <span class="badge bg-secondary rounded-pill"><?php echo $order_frequency_distribution['2_orders']; ?></span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Customers with 3-5 orders
+                            <span class="badge bg-secondary rounded-pill"><?php echo $order_frequency_distribution['3_to_5_orders']; ?></span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Customers with 6+ orders
+                            <span class="badge bg-secondary rounded-pill"><?php echo $order_frequency_distribution['6_plus_orders']; ?></span>
+                        </li>
+                    </ul>
                 </div>
             </div>
         </div>
