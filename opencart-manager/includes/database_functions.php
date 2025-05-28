@@ -559,13 +559,13 @@ function get_total_products_count($filters = [], $language_id = 1) {
  * @return array Array of customers, or empty array on failure/no results.
  */
 function get_customers_list($filters = [], $sort_by = 'name_asc', $limit = 20, $offset = 0) {
-    // $prefix = get_opencart_prefix(); // Standard OpenCart 'customer' table is not prefixed.
+    $prefix = get_opencart_prefix(); // Ensure this line is active and not commented out.
     $limit = (int)$limit;
     $offset = (int)$offset;
     $params = [];
 
     $sql_select = "SELECT c.customer_id, CONCAT(c.firstname, ' ', c.lastname) as name, c.email, c.telephone, c.status as customer_oc_status, c.date_added";
-    $sql_from = " FROM `customer` c"; // Corrected: No prefix for 'customer' table
+    $sql_from = " FROM `{$prefix}customer` c";
     $sql_where = " WHERE 1=1";
 
     // Basic filtering
@@ -621,10 +621,10 @@ function get_customers_list($filters = [], $sort_by = 'name_asc', $limit = 20, $
  * @return int Total number of customers, or 0 on failure.
  */
 function get_total_customers_count($filters = []) {
-    // $prefix = get_opencart_prefix(); // Not needed for 'customer' table
+    $prefix = get_opencart_prefix(); // Ensure this line is active and not commented out.
     $params = [];
 
-    $sql_from = " FROM `customer` c"; // Corrected: No prefix for 'customer' table
+    $sql_from = " FROM `{$prefix}customer` c";
     $sql_where = " WHERE 1=1";
 
     if (!empty($filters['name'])) {
