@@ -25,7 +25,7 @@ $customers_list = get_customers_list($filters, $sort_by, $limit, $offset);
 $total_customers = get_total_customers_count($filters);
 
 // Fetch overall customer analytics for CLV insights
-$overall_analytics = get_overall_customer_analytics(); 
+$overall_analytics = get_overall_customer_analytics();
 
 $avg_spending = 0;
 $avg_orders = 0;

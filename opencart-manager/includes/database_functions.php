@@ -654,13 +654,13 @@ function get_total_customers_count($filters = []) {
  * Get overall customer analytics: total spending, total orders, and unique customer count.
  * Considers only valid orders from registered customers.
  *
- * @return array|false Associative array with 'total_spending', 'total_orders', 
+ * @return array|false Associative array with 'total_spending', 'total_orders',
  *                     'total_unique_customers', or false on error.
  */
 function get_overall_customer_analytics() {
     $prefix = get_opencart_prefix();
     $params = [];
-    
+
     $valid_order_status_condition = "o.order_status_id > 0"; // Default
     if (defined('VALID_ORDER_STATUS_IDS') && is_array(VALID_ORDER_STATUS_IDS) && !empty(VALID_ORDER_STATUS_IDS)) {
         $status_ids_string = implode(',', array_map('intval', VALID_ORDER_STATUS_IDS));
@@ -671,7 +671,7 @@ function get_overall_customer_analytics() {
 
     // Note: For MySQL 5.7+, COUNT(DISTINCT ...) can be slow on large tables.
     // Consider if a subquery or multiple queries would be more performant if issues arise.
-    $sql = "SELECT 
+    $sql = "SELECT
                 SUM(o.total) as total_spending,
                 COUNT(o.order_id) as total_orders,
                 COUNT(DISTINCT o.customer_id) as total_unique_customers
@@ -681,11 +681,11 @@ function get_overall_customer_analytics() {
 
     $result = execute_query($sql, $params);
 
-    if ($result === false) { 
+    if ($result === false) {
         // Query execution error
         return false;
     }
-    
+
     if (empty($result)) {
         // No orders matching criteria, or no orders at all. Return zeros.
         return ['total_spending' => 0, 'total_orders' => 0, 'total_unique_customers' => 0];
@@ -715,7 +715,7 @@ function get_customer_order_counts() {
         }
     }
 
-    $sql = "SELECT 
+    $sql = "SELECT
                 o.customer_id,
                 COUNT(o.order_id) as order_count
             FROM `{$prefix}order` o
@@ -729,7 +729,7 @@ function get_customer_order_counts() {
     if ($results === false) {
         return []; // Return empty array on error
     }
-    
+
     // execute_query typically returns strings from DB, ensure order_count is int
     return array_map(function($row) {
         $row['customer_id'] = (int)$row['customer_id']; // Also ensure customer_id is int
